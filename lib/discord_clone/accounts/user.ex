@@ -4,6 +4,7 @@ defmodule DiscordClone.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :username, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :current_password, :string, virtual: true, redact: true
@@ -41,9 +42,18 @@ defmodule DiscordClone.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password])
+    |> cast(attrs, [:email, :username, :password])
+    |> validate_username(opts)
     |> validate_email(opts)
     |> validate_password(opts)
+  end
+
+  defp validate_username(changeset, opts) do
+    changeset
+    |> validate_required([:username])
+    |> validate_length(:username, min: 3, max: 20)
+    |> validate_format(:username, ~r/^[a-zA-Z0-9_-]+$/, message: "can only contain letters, numbers, underscores, and hyphens")
+    |> maybe_validate_unique_username(opts)
   end
 
   defp validate_email(changeset, opts) do
@@ -87,6 +97,16 @@ defmodule DiscordClone.Accounts.User do
       changeset
       |> unsafe_validate_unique(:email, DiscordClone.Repo)
       |> unique_constraint(:email)
+    else
+      changeset
+    end
+  end
+
+  defp maybe_validate_unique_username(changeset, opts) do
+    if Keyword.get(opts, :validate_username, true) do
+      changeset
+      |> unsafe_validate_unique(:username, DiscordClone.Repo)
+      |> unique_constraint(:username)
     else
       changeset
     end

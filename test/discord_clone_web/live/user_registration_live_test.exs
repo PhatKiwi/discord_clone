@@ -40,8 +40,9 @@ defmodule DiscordCloneWeb.UserRegistrationLiveTest do
     test "creates account and logs the user in", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
+      username = unique_username()
       email = unique_user_email()
-      form = form(lv, "#registration_form", user: valid_user_attributes(email: email))
+      form = form(lv, "#registration_form", user: valid_user_attributes(email: email, username: username))
       render_submit(form)
       conn = follow_trigger_action(form, conn)
 
@@ -50,7 +51,7 @@ defmodule DiscordCloneWeb.UserRegistrationLiveTest do
       # Now do a logged in request and assert on the menu
       conn = get(conn, "/servers")
       response = html_response(conn, 200)
-      assert response =~ email
+      assert response =~ username
       assert response =~ "Settings"
       assert response =~ "Log out"
     end

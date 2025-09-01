@@ -34,10 +34,10 @@ defmodule DiscordCloneWeb.HeaderComponent do
             <div class="flex items-center gap-2 px-3 py-1 bg-zinc-50 rounded-lg">
               <div class="h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center">
                 <span class="text-xs font-medium text-white">
-                  <%= String.first(@current_user.email) |> String.upcase() %>
+                  <%= String.first(@current_user.username) |> String.upcase() %>
                 </span>
               </div>
-              <span class="text-sm text-zinc-700"><%= @current_user.email %></span>
+              <span class="text-sm text-zinc-700"><%= @current_user.username %></span>
             </div>
             <.link navigate={~p"/users/settings"} class="hover:text-zinc-700">
               Settings
