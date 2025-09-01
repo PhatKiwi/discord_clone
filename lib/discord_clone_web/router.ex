@@ -15,6 +15,8 @@ defmodule DiscordCloneWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :fetch_session
+    plug :fetch_current_user
   end
 
   scope "/", DiscordCloneWeb do
@@ -23,10 +25,18 @@ defmodule DiscordCloneWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", DiscordCloneWeb do
-  #   pipe_through :api
-  # end
+  # API routes
+  scope "/api", DiscordCloneWeb do
+    pipe_through [:api, :require_authenticated_user]
+
+    resources "/servers", ServerController, except: [:new, :edit]
+    
+    # Server membership routes
+    get "/servers/:server_id/members", ServerController, :list_members
+    post "/servers/:server_id/members/:user_id", ServerController, :add_member
+    delete "/servers/:server_id/members/:user_id", ServerController, :remove_member
+    patch "/servers/:server_id/members/:user_id/role", ServerController, :update_member_role
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:discord_clone, :dev_routes) do
@@ -68,6 +78,8 @@ defmodule DiscordCloneWeb.Router do
       on_mount: [{DiscordCloneWeb.UserAuth, :ensure_authenticated}] do
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
+      live "/servers", ServersLive, :index
+      live "/servers/:id", ServerLive, :show
     end
   end
 

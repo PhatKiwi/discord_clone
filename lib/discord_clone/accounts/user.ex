@@ -9,6 +9,10 @@ defmodule DiscordClone.Accounts.User do
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
 
+    has_many :servers, DiscordClone.Servers.Server
+    has_many :server_users, DiscordClone.Servers.ServerUser
+    many_to_many :member_servers, DiscordClone.Servers.Server, join_through: "server_users"
+
     timestamps(type: :utc_datetime)
   end
 

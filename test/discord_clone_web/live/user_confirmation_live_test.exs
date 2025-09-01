@@ -29,7 +29,7 @@ defmodule DiscordCloneWeb.UserConfirmationLiveTest do
         lv
         |> form("#confirmation_form")
         |> render_submit()
-        |> follow_redirect(conn, "/")
+        |>  follow_redirect(conn, "/")
 
       assert {:ok, conn} = result
 
@@ -47,7 +47,7 @@ defmodule DiscordCloneWeb.UserConfirmationLiveTest do
         lv
         |> form("#confirmation_form")
         |> render_submit()
-        |> follow_redirect(conn, "/")
+        |>  follow_redirect(conn, "/")
 
       assert {:ok, conn} = result
 
@@ -65,7 +65,7 @@ defmodule DiscordCloneWeb.UserConfirmationLiveTest do
         lv
         |> form("#confirmation_form")
         |> render_submit()
-        |> follow_redirect(conn, "/")
+        |>  follow_redirect(conn, "/")
 
       assert {:ok, conn} = result
       refute Phoenix.Flash.get(conn.assigns.flash, :error)

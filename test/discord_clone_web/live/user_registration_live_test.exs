@@ -17,7 +17,7 @@ defmodule DiscordCloneWeb.UserRegistrationLiveTest do
         conn
         |> log_in_user(user_fixture())
         |> live(~p"/users/register")
-        |> follow_redirect(conn, "/")
+        |>  follow_redirect(conn, "/servers")
 
       assert {:ok, _conn} = result
     end
@@ -45,10 +45,10 @@ defmodule DiscordCloneWeb.UserRegistrationLiveTest do
       render_submit(form)
       conn = follow_trigger_action(form, conn)
 
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/servers"
 
       # Now do a logged in request and assert on the menu
-      conn = get(conn, "/")
+      conn = get(conn, "/servers")
       response = html_response(conn, 200)
       assert response =~ email
       assert response =~ "Settings"

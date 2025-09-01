@@ -1,0 +1,166 @@
+<div class="mx-auto max-w-6xl px-4 py-8">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <.link
+          navigate={~p"/servers"}
+          class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        >
+          <.icon name="hero-arrow-left" class="mr-1 h-4 w-4" />
+          Back to Servers
+        </.link>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <button
+          :if={!@is_owner}
+          phx-click="leave_server"
+          data-confirm="Are you sure you want to leave this server?"
+          class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+        >
+          <.icon name="hero-arrow-right-on-rectangle" class="mr-1.5 h-4 w-4" />
+          Leave Server
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+        <%= @server.name %>
+      </h1>
+      <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+        <div class="flex items-center">
+          <.icon name="hero-users" class="mr-1 h-4 w-4" />
+          <%= length(@members) %> members
+        </div>
+        <div class="flex items-center">
+          <.icon name="hero-calendar" class="mr-1 h-4 w-4" />
+          Created <%= Calendar.strftime(@server.inserted_at, "%B %d, %Y") %>
+        </div>
+        <div class="flex items-center">
+          <%= if @is_owner do %>
+            <.icon name="hero-crown" class="mr-1 h-4 w-4 text-yellow-500" />
+            Owner
+          <% else %>
+            <.icon name="hero-user" class="mr-1 h-4 w-4" />
+            <%= if @is_admin, do: "Admin", else: "Member" %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server Content Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Main Content Area -->
+    <div class="lg:col-span-2 space-y-6">
+      
+      <!-- Welcome Message -->
+      <div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white">Welcome to <%= @server.name %></h2>
+        </div>
+        <div class="p-6">
+          <p class="text-gray-600 dark:text-gray-400">
+            This is your server dashboard. Here you can view server information, manage members, and access various features.
+          </p>
+          
+          <!-- Placeholder for future features -->
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+              <.icon name="hero-chat-bubble-left-right" class="mx-auto h-8 w-8 text-gray-400" />
+              <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">Channels</div>
+              <div class="text-xs text-gray-400">Coming soon</div>
+            </div>
+            <div class="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+              <.icon name="hero-microphone" class="mx-auto h-8 w-8 text-gray-400" />
+              <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">Voice Chat</div>
+              <div class="text-xs text-gray-400">Coming soon</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server Stats -->
+      <div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white">Server Statistics</h3>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                <%= length(@members) %>
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Total Members</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+                <%= Enum.count(@members, & &1.role == "admin") %>
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Admins</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">0</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Channels</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar - Members List -->
+    <div class="lg:col-span-1">
+      <div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white">Members</h3>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4">
+            <div :for={member <- @members} class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div class="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center">
+                  <span class="text-xs font-medium text-white">
+                    <%= String.first(member.user.email) |> String.upcase() %>
+                  </span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <%= member.user.email %>
+                </p>
+                <div class="flex items-center space-x-1">
+                  <%= if member.role == "admin" do %>
+                    <.icon name="hero-shield-check" class="h-3 w-3 text-yellow-500" />
+                    <p class="text-xs text-yellow-600 dark:text-yellow-400">Admin</p>
+                  <% else %>
+                    <.icon name="hero-user" class="h-3 w-3 text-gray-400" />
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Member</p>
+                  <% end %>
+                </div>
+              </div>
+              
+              <!-- Owner Crown -->
+              <div :if={member.user_id == @server.user_id} class="flex-shrink-0" title="Server Owner">
+                <.icon name="hero-crown" class="h-4 w-4 text-yellow-500" />
+              </div>
+            </div>
+          </div>
+          
+          <!-- Add Member Button (for admins) -->
+          <div :if={@is_admin} class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <button
+              disabled
+              class="w-full inline-flex justify-center items-center rounded-md bg-gray-300 px-3 py-2 text-sm font-semibold text-gray-500 cursor-not-allowed"
+            >
+              <.icon name="hero-plus" class="mr-1.5 h-4 w-4" />
+              Add Member (Coming Soon)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
