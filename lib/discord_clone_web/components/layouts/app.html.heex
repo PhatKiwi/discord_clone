@@ -1,7 +1,87 @@
-<DiscordCloneWeb.HeaderComponent.header current_user={assigns[:current_user]} />
-<main class="px-4 py-20 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-2xl">
-    <.flash_group flash={@flash} />
-    <%= @inner_content %>
+<%= if assigns[:current_user] do %>
+  <!-- Layout with sidebar for authenticated users -->
+  <div class="flex h-screen bg-gray-100">
+    <!-- Mobile sidebar backdrop -->
+    <div class="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden" id="sidebar-backdrop" style="display: none;"></div>
+    
+    <!-- Sidebar -->
+    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-0 transition-transform duration-300 ease-in-out" id="sidebar">
+      <.live_component 
+        module={DiscordCloneWeb.SidebarLive} 
+        id="sidebar" 
+        current_user={@current_user} 
+        current_server_id={assigns[:current_server_id]}
+      />
+    </div>
+    
+    <!-- Main content -->
+    <div class="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <!-- Header with mobile menu button -->
+      <div class="border-b border-gray-200 bg-white px-4 py-3 lg:px-6">
+        <div class="flex items-center justify-between">
+          <!-- Mobile menu button -->
+          <button
+            type="button"
+            class="text-gray-500 hover:text-gray-600 lg:hidden"
+            onclick="toggleSidebar()"
+          >
+            <.icon name="hero-bars-3" class="h-6 w-6" />
+          </button>
+          
+          <!-- Desktop header -->
+          <div class="hidden lg:block flex-1">
+            <DiscordCloneWeb.HeaderComponent.header current_user={@current_user} />
+          </div>
+          
+          <!-- Mobile header - just user info -->
+          <div class="flex items-center gap-3 lg:hidden">
+            <div class="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center">
+              <span class="text-xs font-medium text-white">
+                <%= String.first(@current_user.username) |> String.upcase() %>
+              </span>
+            </div>
+            <span class="text-sm font-medium text-gray-900"><%= @current_user.username %></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Page content -->
+      <main class="flex-1 overflow-y-auto">
+        <div class="px-4 py-6 sm:px-6 lg:px-8">
+          <.flash_group flash={@flash} />
+          <%= @inner_content %>
+        </div>
+      </main>
+    </div>
   </div>
-</main>
+  
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const isOpen = sidebar.classList.contains('translate-x-0');
+      
+      if (isOpen) {
+        sidebar.classList.remove('translate-x-0');
+        sidebar.classList.add('-translate-x-full');
+        backdrop.style.display = 'none';
+      } else {
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        backdrop.style.display = 'block';
+      }
+    }
+    
+    // Close sidebar when clicking backdrop
+    document.getElementById('sidebar-backdrop').addEventListener('click', toggleSidebar);
+  </script>
+<% else %>
+  <!-- Simple layout for unauthenticated users -->
+  <DiscordCloneWeb.HeaderComponent.header current_user={assigns[:current_user]} />
+  <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-2xl">
+      <.flash_group flash={@flash} />
+      <%= @inner_content %>
+    </div>
+  </main>
+<% end %>

@@ -79,6 +79,7 @@ defmodule DiscordCloneWeb.Router do
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
       live "/servers", ServersLive, :index
+      live "/servers/new", ServersLive, :new
       live "/servers/:id", ServerLive, :show
     end
   end

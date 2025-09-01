@@ -1,6 +1,7 @@
 defmodule DiscordCloneWeb.ServersLive do
   use DiscordCloneWeb, :live_view
-
+  
+  require Logger
   alias DiscordClone.Servers
   alias DiscordClone.Servers.Server
 
@@ -11,10 +12,14 @@ defmodule DiscordCloneWeb.ServersLive do
     if current_user do
       member_servers = Servers.list_member_servers_for_user(current_user.id)
       
+      # Subscribe to server updates for real-time changes
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(DiscordClone.PubSub, "servers:#{current_user.id}")
+      end
+      
       socket = 
         socket
         |> assign(:servers, member_servers)
-        |> assign(:show_create_form, false)
         |> assign(:form, to_form(Servers.change_server(%Server{})))
 
       {:ok, socket}
@@ -24,53 +29,20 @@ defmodule DiscordCloneWeb.ServersLive do
   end
 
   @impl true
-  def handle_event("show_create_form", _params, socket) do
-    {:noreply, assign(socket, :show_create_form, true)}
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  @impl true
-  def handle_event("hide_create_form", _params, socket) do
-    socket = 
-      socket
-      |> assign(:show_create_form, false)
-      |> assign(:form, to_form(Servers.change_server(%Server{})))
-    
-    {:noreply, socket}
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:page_title, "My Servers")
   end
 
-  @impl true
-  def handle_event("validate_server", %{"server" => server_params}, socket) do
-    changeset = 
-      %Server{}
-      |> Servers.change_server(server_params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign(socket, :form, to_form(changeset))}
+  defp apply_action(socket, :new, _params) do
+    socket
+    |> assign(:page_title, "Create Server")
   end
 
-  @impl true
-  def handle_event("create_server", %{"server" => server_params}, socket) do
-    current_user = socket.assigns.current_user
-    server_params = Map.put(server_params, "user_id", current_user.id)
-
-    case Servers.create_server(server_params) do
-      {:ok, server} ->
-        # Refresh the server list
-        member_servers = Servers.list_member_servers_for_user(current_user.id)
-        
-        socket = 
-          socket
-          |> assign(:servers, member_servers)
-          |> assign(:show_create_form, false)
-          |> assign(:form, to_form(Servers.change_server(%Server{})))
-          |> put_flash(:info, "Server \"#{server.name}\" created successfully!")
-
-        {:noreply, socket}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
-  end
 
   @impl true
   def handle_event("delete_server", %{"id" => id}, socket) do
@@ -83,6 +55,13 @@ defmodule DiscordCloneWeb.ServersLive do
       server ->
         case Servers.delete_server(server) do
           {:ok, _server} ->
+            # Broadcast server deletion for real-time updates
+            Phoenix.PubSub.broadcast(
+              DiscordClone.PubSub,
+              "servers:#{current_user.id}",
+              {:server_deleted, server.id}
+            )
+            
             # Refresh the server list
             member_servers = Servers.list_member_servers_for_user(current_user.id)
             
@@ -105,5 +84,50 @@ defmodule DiscordCloneWeb.ServersLive do
 
   def is_server_admin?(server_id, user_id) do
     Servers.is_server_admin?(server_id, user_id)
+  end
+
+  @impl true
+  def handle_info({:server_created, _server}, socket) do
+    # Refresh server list when a new server is created
+    current_user = socket.assigns.current_user
+    member_servers = Servers.list_member_servers_for_user(current_user.id)
+    
+    # Update the sidebar component
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, assign(socket, :servers, member_servers)}
+  end
+
+  @impl true
+  def handle_info({:server_updated, _server}, socket) do
+    # Refresh server list when a server is updated
+    current_user = socket.assigns.current_user
+    member_servers = Servers.list_member_servers_for_user(current_user.id)
+    
+    # Update the sidebar component
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, assign(socket, :servers, member_servers)}
+  end
+
+  @impl true
+  def handle_info({:server_deleted, _server_id}, socket) do
+    # Refresh server list when a server is deleted
+    current_user = socket.assigns.current_user
+    member_servers = Servers.list_member_servers_for_user(current_user.id)
+    
+    # Update the sidebar component
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, assign(socket, :servers, member_servers)}
   end
 end

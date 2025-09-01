@@ -30,20 +30,20 @@ defmodule DiscordCloneWeb.ServersLiveTest do
       user = user_fixture()
       conn = log_in_user(conn, user)
 
-      {:ok, index_live, _html} = live(conn, ~p"/servers")
+      {:ok, _index_live, _html} = live(conn, ~p"/servers")
 
-      # Open create form - click the button in the empty state
-      assert index_live |> element("button[phx-click='show_create_form']") |> render_click()
-      assert has_element?(index_live, "h2", "Create New Server")
+      # Navigate to create form
+      {:ok, form_live, _html} = live(conn, ~p"/servers/new") 
+      assert has_element?(form_live, "h2", "Create New Server")
 
       # Submit form
-      assert index_live
-             |> form("[phx-submit='create_server']", server: %{name: "My New Server"})
-             |> render_submit()
-
-      # Check that the server was created and appears in the list
-      html = render(index_live)
-      assert html =~ "My New Server"
+      form_live
+      |> form("[phx-submit='save']", server: %{name: "My New Server"})
+      |> render_submit()
+      
+      # Verify the server was created by checking the database
+      servers = DiscordClone.Servers.list_member_servers_for_user(user.id)
+      assert Enum.any?(servers, fn s -> s.name == "My New Server" end)
     end
 
     test "redirects if user is not logged in", %{conn: conn} do

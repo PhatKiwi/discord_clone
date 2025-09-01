@@ -20,12 +20,18 @@ defmodule DiscordCloneWeb.ServerLive do
         server ->
           members = Servers.list_server_members(server.id)
           
+          # Subscribe to server updates for real-time changes
+          if connected?(socket) do
+            Phoenix.PubSub.subscribe(DiscordClone.PubSub, "servers:#{current_user.id}")
+          end
+          
           socket = 
             socket
             |> assign(:server, server)
             |> assign(:members, members)
             |> assign(:is_admin, is_server_admin?(server.id, current_user.id))
             |> assign(:is_owner, is_server_owner?(server, current_user.id))
+            |> assign(:current_server_id, String.to_integer(id))
 
           {:ok, socket}
       end
@@ -64,5 +70,44 @@ defmodule DiscordCloneWeb.ServerLive do
 
   defp is_server_admin?(server_id, user_id) do
     Servers.is_server_admin?(server_id, user_id)
+  end
+
+  @impl true
+  def handle_info({:server_created, _server}, socket) do
+    # Update the sidebar component when a new server is created
+    current_user = socket.assigns.current_user
+    
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:server_updated, _server}, socket) do
+    # Update the sidebar component when a server is updated
+    current_user = socket.assigns.current_user
+    
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:server_deleted, _server_id}, socket) do
+    # Update the sidebar component when a server is deleted
+    current_user = socket.assigns.current_user
+    
+    send_update(DiscordCloneWeb.SidebarLive, 
+      id: "sidebar",
+      current_user: current_user,
+      current_server_id: socket.assigns[:current_server_id])
+    
+    {:noreply, socket}
   end
 end
