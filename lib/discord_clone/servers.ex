@@ -8,6 +8,7 @@ defmodule DiscordClone.Servers do
 
   alias DiscordClone.Servers.Server
   alias DiscordClone.Servers.ServerUser
+  alias DiscordClone.Servers.Channel
 
   @doc """
   Returns the list of servers for a user (owned servers).
@@ -98,7 +99,7 @@ defmodule DiscordClone.Servers do
   end
 
   @doc """
-  Creates a server and automatically adds the creator as admin.
+  Creates a server and automatically adds the creator as admin and creates a general channel.
 
   ## Examples
 
@@ -117,7 +118,14 @@ defmodule DiscordClone.Servers do
           case %ServerUser{}
                |> ServerUser.changeset(%{server_id: server.id, user_id: server.user_id, role: "admin"})
                |> Repo.insert() do
-            {:ok, _server_user} -> server
+            {:ok, _server_user} -> 
+              # Create the default "general" channel
+              case %Channel{}
+                   |> Channel.changeset(%{name: "general", server_id: server.id})
+                   |> Repo.insert() do
+                {:ok, _channel} -> server
+                {:error, changeset} -> Repo.rollback(changeset)
+              end
             {:error, changeset} -> Repo.rollback(changeset)
           end
         {:error, changeset} -> 
@@ -289,5 +297,149 @@ defmodule DiscordClone.Servers do
         |> ServerUser.changeset(%{role: role})
         |> Repo.update()
     end
+  end
+
+  # Channel functions
+
+  @doc """
+  Returns the list of channels for a server.
+
+  ## Examples
+
+      iex> list_channels_for_server(server_id)
+      [%Channel{}, ...]
+
+  """
+  def list_channels_for_server(server_id) do
+    Channel
+    |> where([c], c.server_id == ^server_id)
+    |> order_by([c], asc: c.inserted_at)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single channel.
+
+  Raises `Ecto.NoResultsError` if the Channel does not exist.
+
+  ## Examples
+
+      iex> get_channel!(123)
+      %Channel{}
+
+      iex> get_channel!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_channel!(id), do: Repo.get!(Channel, id)
+
+  @doc """
+  Gets a single channel by id and server_id.
+
+  Returns `nil` if the Channel does not exist.
+
+  ## Examples
+
+      iex> get_server_channel(server_id, channel_id)
+      %Channel{}
+
+      iex> get_server_channel(server_id, non_existent_id)
+      nil
+
+  """
+  def get_server_channel(server_id, channel_id) do
+    Channel
+    |> where([c], c.server_id == ^server_id and c.id == ^channel_id)
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a channel for a server. Only server admins can create channels.
+
+  ## Examples
+
+      iex> create_channel_for_server(server_id, admin_user_id, %{name: "new-channel"})
+      {:ok, %Channel{}}
+
+      iex> create_channel_for_server(server_id, non_admin_user_id, %{name: "new-channel"})
+      {:error, :not_authorized}
+
+      iex> create_channel_for_server(server_id, admin_user_id, %{name: ""})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_channel_for_server(server_id, user_id, attrs) do
+    if is_server_admin?(server_id, user_id) do
+      %Channel{}
+      |> Channel.changeset(Map.put(attrs, "server_id", server_id))
+      |> Repo.insert()
+    else
+      {:error, :not_authorized}
+    end
+  end
+
+  @doc """
+  Updates a channel. Only server admins can update channels.
+
+  ## Examples
+
+      iex> update_channel(channel, admin_user_id, %{name: "updated-name"})
+      {:ok, %Channel{}}
+
+      iex> update_channel(channel, non_admin_user_id, %{name: "updated-name"})
+      {:error, :not_authorized}
+
+      iex> update_channel(channel, admin_user_id, %{name: ""})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_channel(%Channel{} = channel, user_id, attrs) do
+    if is_server_admin?(channel.server_id, user_id) do
+      channel
+      |> Channel.changeset(attrs)
+      |> Repo.update()
+    else
+      {:error, :not_authorized}
+    end
+  end
+
+  @doc """
+  Deletes a channel. Only server admins can delete channels.
+  The "general" channel cannot be deleted.
+
+  ## Examples
+
+      iex> delete_channel(channel, admin_user_id)
+      {:ok, %Channel{}}
+
+      iex> delete_channel(channel, non_admin_user_id)
+      {:error, :not_authorized}
+
+      iex> delete_channel(general_channel, admin_user_id)
+      {:error, :cannot_delete_general}
+
+  """
+  def delete_channel(%Channel{} = channel, user_id) do
+    cond do
+      !is_server_admin?(channel.server_id, user_id) ->
+        {:error, :not_authorized}
+      channel.name == "general" ->
+        {:error, :cannot_delete_general}
+      true ->
+        Repo.delete(channel)
+    end
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking channel changes.
+
+  ## Examples
+
+      iex> change_channel(channel)
+      %Ecto.Changeset{data: %Channel{}}
+
+  """
+  def change_channel(%Channel{} = channel, attrs \\ %{}) do
+    Channel.changeset(channel, attrs)
   end
 end

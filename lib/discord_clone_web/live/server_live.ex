@@ -19,6 +19,7 @@ defmodule DiscordCloneWeb.ServerLive do
 
         server ->
           members = Servers.list_server_members(server.id)
+          channels = Servers.list_channels_for_server(server.id)
           
           # Subscribe to server updates for real-time changes
           if connected?(socket) do
@@ -29,15 +30,103 @@ defmodule DiscordCloneWeb.ServerLive do
             socket
             |> assign(:server, server)
             |> assign(:members, members)
+            |> assign(:channels, channels)
             |> assign(:is_admin, is_server_admin?(server.id, current_user.id))
             |> assign(:is_owner, is_server_owner?(server, current_user.id))
             |> assign(:current_server_id, String.to_integer(id))
+            |> assign(:show_create_channel_form, false)
+            |> assign(:channel_form, to_form(Servers.change_channel(%DiscordClone.Servers.Channel{})))
 
           {:ok, socket}
       end
     else
       {:ok, redirect(socket, to: ~p"/users/log_in")}
     end
+  end
+
+  @impl true
+  def handle_event("show_create_channel_form", _params, socket) do
+    {:noreply, assign(socket, :show_create_channel_form, true)}
+  end
+
+  @impl true
+  def handle_event("hide_create_channel_form", _params, socket) do
+    {:noreply, 
+     socket
+     |> assign(:show_create_channel_form, false)
+     |> assign(:channel_form, to_form(Servers.change_channel(%DiscordClone.Servers.Channel{})))
+    }
+  end
+
+  @impl true
+  def handle_event("create_channel", %{"channel" => channel_params}, socket) do
+    current_user = socket.assigns.current_user
+    server = socket.assigns.server
+
+    case Servers.create_channel_for_server(server.id, current_user.id, channel_params) do
+      {:ok, _channel} ->
+        # Reload channels
+        channels = Servers.list_channels_for_server(server.id)
+        
+        socket = 
+          socket
+          |> assign(:channels, channels)
+          |> assign(:show_create_channel_form, false)
+          |> assign(:channel_form, to_form(Servers.change_channel(%DiscordClone.Servers.Channel{})))
+          |> put_flash(:info, "Channel created successfully")
+
+        {:noreply, socket}
+
+      {:error, :not_authorized} ->
+        {:noreply, put_flash(socket, :error, "You don't have permission to create channels")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :channel_form, to_form(changeset))}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_channel", %{"channel_id" => channel_id}, socket) do
+    current_user = socket.assigns.current_user
+    server = socket.assigns.server
+    
+    case Servers.get_server_channel(server.id, channel_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Channel not found")}
+      
+      channel ->
+        case Servers.delete_channel(channel, current_user.id) do
+          {:ok, _channel} ->
+            # Reload channels
+            channels = Servers.list_channels_for_server(server.id)
+            
+            socket = 
+              socket
+              |> assign(:channels, channels)
+              |> put_flash(:info, "Channel deleted successfully")
+
+            {:noreply, socket}
+
+          {:error, :not_authorized} ->
+            {:noreply, put_flash(socket, :error, "You don't have permission to delete channels")}
+
+          {:error, :cannot_delete_general} ->
+            {:noreply, put_flash(socket, :error, "Cannot delete the general channel")}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete channel")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("validate_channel", %{"channel" => channel_params}, socket) do
+    changeset = 
+      %DiscordClone.Servers.Channel{}
+      |> Servers.change_channel(channel_params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :channel_form, to_form(changeset))}
   end
 
   @impl true

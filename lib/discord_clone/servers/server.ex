@@ -7,6 +7,7 @@ defmodule DiscordClone.Servers.Server do
     belongs_to :user, DiscordClone.Accounts.User
     
     has_many :server_users, DiscordClone.Servers.ServerUser
+    has_many :channels, DiscordClone.Servers.Channel
     many_to_many :users, DiscordClone.Accounts.User, join_through: "server_users"
 
     timestamps(type: :utc_datetime)
