@@ -69,7 +69,7 @@
           <div :if={@is_admin} class="text-xs mt-1">Click + to create one</div>
         </div>
         
-        <div :for={channel <- @channels} class="group flex items-center justify-between p-2 rounded hover:bg-gray-700 text-gray-300 hover:text-white">
+        <div :for={channel <- @channels} class={"group flex items-center justify-between p-2 rounded hover:bg-gray-700 text-gray-300 hover:text-white cursor-pointer #{if @selected_channel && @selected_channel.id == channel.id, do: "bg-gray-700 text-white", else: ""}"} phx-click="select_channel" phx-value-channel_id={channel.id}>
           <div class="flex items-center space-x-2 flex-1 min-w-0">
             <.icon name="hero-hashtag" class="h-4 w-4 text-gray-400 flex-shrink-0" />
             <span class="text-sm truncate"><%= channel.name %></span>
@@ -106,30 +106,40 @@
 
   <!-- Main Content Area -->
   <div class="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col overflow-hidden">
-    <!-- Main scrollable content -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="p-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Welcome to <%= @server.name %></h2>
-          <p class="text-gray-600 dark:text-gray-400">
-            This is your server dashboard. Select a channel from the left sidebar to start chatting, or view member information in the right sidebar.
-          </p>
-        </div>
-        
-        <!-- Add some dummy content to demonstrate scrolling -->
-        <div class="mt-6 space-y-4">
-          <%= for i <- 1..20 do %>
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h3 class="text-md font-medium text-gray-900 dark:text-white">Message <%= i %></h3>
-              <p class="text-gray-600 dark:text-gray-400 mt-2">
-                This is a sample message to demonstrate independent scrolling in the main content area. 
-                Each section can now scroll independently without affecting the others.
-              </p>
-            </div>
-          <% end %>
+    <%= if @selected_channel do %>
+      <!-- Chat Component -->
+      <.live_component 
+        module={DiscordCloneWeb.ChatComponent} 
+        id={@selected_channel.id} 
+        channel={@selected_channel}
+        socket_token={@socket_token}
+      />
+    <% else %>
+      <!-- Welcome Screen -->
+      <div class="flex-1 overflow-y-auto">
+        <div class="p-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Welcome to <%= @server.name %></h2>
+            <p class="text-gray-600 dark:text-gray-400">
+              Select a channel from the left sidebar to start chatting!
+            </p>
+            <%= if !Enum.empty?(@channels) do %>
+              <div class="mt-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Available channels:</p>
+                <div class="space-y-1">
+                  <%= for channel <- @channels do %>
+                    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                      <.icon name="hero-hashtag" class="h-4 w-4" />
+                      <span><%= channel.name %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
         </div>
       </div>
-    </div>
+    <% end %>
   </div>
 
   <!-- Members Sidebar -->

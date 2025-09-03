@@ -36,6 +36,8 @@ defmodule DiscordCloneWeb.ServerLive do
             |> assign(:current_server_id, String.to_integer(id))
             |> assign(:show_create_channel_form, false)
             |> assign(:channel_form, to_form(Servers.change_channel(%DiscordClone.Servers.Channel{})))
+            |> assign(:selected_channel, nil)
+            |> assign(:socket_token, Phoenix.Token.sign(DiscordCloneWeb.Endpoint, "user_socket", current_user.id))
 
           {:ok, socket}
       end
@@ -64,7 +66,7 @@ defmodule DiscordCloneWeb.ServerLive do
     server = socket.assigns.server
 
     case Servers.create_channel_for_server(server.id, current_user.id, channel_params) do
-      {:ok, _channel} ->
+      {:ok, channel} ->
         # Reload channels
         channels = Servers.list_channels_for_server(server.id)
         
@@ -73,6 +75,7 @@ defmodule DiscordCloneWeb.ServerLive do
           |> assign(:channels, channels)
           |> assign(:show_create_channel_form, false)
           |> assign(:channel_form, to_form(Servers.change_channel(%DiscordClone.Servers.Channel{})))
+          |> assign(:selected_channel, channel)
           |> put_flash(:info, "Channel created successfully")
 
         {:noreply, socket}
@@ -100,9 +103,18 @@ defmodule DiscordCloneWeb.ServerLive do
             # Reload channels
             channels = Servers.list_channels_for_server(server.id)
             
+            # Clear selected channel if it was the one deleted
+            selected_channel = 
+              if socket.assigns.selected_channel && socket.assigns.selected_channel.id == String.to_integer(channel_id) do
+                nil
+              else
+                socket.assigns.selected_channel
+              end
+            
             socket = 
               socket
               |> assign(:channels, channels)
+              |> assign(:selected_channel, selected_channel)
               |> put_flash(:info, "Channel deleted successfully")
 
             {:noreply, socket}
@@ -127,6 +139,19 @@ defmodule DiscordCloneWeb.ServerLive do
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, :channel_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("select_channel", %{"channel_id" => channel_id}, socket) do
+    server = socket.assigns.server
+    
+    case Servers.get_server_channel(server.id, channel_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Channel not found")}
+      
+      channel ->
+        {:noreply, assign(socket, :selected_channel, channel)}
+    end
   end
 
   @impl true
